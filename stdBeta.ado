@@ -1,4 +1,4 @@
-* version 1.6 11July2014
+* version 1.7 1July2016
 * Doug Hemken, Social Science Computing Coop
 *    Univ of Wisc - Madison
 program define stdBeta
@@ -25,7 +25,7 @@ program define stdBeta
 	local cmdline `e(cmdline)'
 	local dep `e(depvar)'
 	local cols: colnames e(b)
-	local cols: subinstr local cols "_cons" ""
+	local cols: subinstr local cols "_cons" "", all
 	
 	// identify continuous variables
 	local vars: subinstr local cols "#" " ", all
