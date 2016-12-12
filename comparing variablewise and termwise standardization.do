@@ -6,18 +6,20 @@ egen sprice = std(price)
 generate mxw = mpg*weight
 egen smpg = std(mpg)
 egen sweight = std(weight)
-egen smxw = std(mxw)
-generate stdmxw = smpg*sweight
+egen smxw = std(mxw) // termwise
+generate stdmxw = smpg*sweight // variablewise
 
-scatter smxw stdmxw
+scatter smxw stdmxw // not a simple transformation!
 
 graph matrix mpg smpg weight sweight mxw smxw stdmxw, half
 graph matrix smpg sweight smxw stdmxw, half
 
-regress price c.mpg##c.weight, beta
-regress sprice c.smpg##c.sweight, beta
+regress price c.mpg##c.weight, beta // untransformed, and termwise
+stdBeta // untransformed, centered, variablewise
+regress sprice c.smpg##c.sweight, beta // variablewise, and ??
+regress sprice smpg sweight stdmxw  // variablewise
 
-regress sprice c.smpg c.sweight smxw, beta
+regress sprice c.smpg c.sweight smxw, beta // termwise, and termwise
 
 * Polynomials
 sysuse auto, clear
