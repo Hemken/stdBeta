@@ -1,20 +1,20 @@
-* version 1.7 1July2016
+* version 1.8 13December2016
 * Doug Hemken, Social Science Computing Coop
 *    Univ of Wisc - Madison
-program define stdBeta
+// capture program drop stdBeta _est_move
+program define stdBeta2
 	version 13
-	syntax [, nodepvar replace store *] 
+	syntax [, nodepvar store replace *] 
 	// options for estimates table are allowed
 	
 	preserve
-	
-	// check that estimate storage names are not already in use
-	quietly estimates dir
-	local storenames "`r(names)' Original Centered Standardized"
-	local storedups : list dups storenames
-	if "`storedups'" != "" & "`replace'" == "" {
-		di "{error: estimate store(s) `storedups' cannot be overwritten}"
-		exit
+
+	capture estimates dir Original
+	local clasho = "`r(names)'"
+	if "`clasho'" == "Original" {
+		display "Note:  found estimate store {it:Original}"
+		tempname Original
+		_est_move Original, to(`Original')
 		}
 	estimates store Original
 	tempvar touse
@@ -63,7 +63,7 @@ program define stdBeta
 				}
 		}
 		else {
-			display "Failure to specify {cmd: nodepvar} where needed can cause errors." 
+			display "Failure to specify {cmd:nodepvar} where needed can produce meaningless results." 
 			if "`depvar'" == "" {
 					local vars `e(depvar)' `r(varlist)'
 					}
@@ -79,6 +79,13 @@ program define stdBeta
 	}
 	// re-estimate, centered
 	quietly `cmdline'
+	capture estimates dir Centered
+	local clashc = "`r(names)'"
+	if "`clashc'" == "Centered" {
+		display "Note:  found estimate store {it:Centered}"
+		tempname Centered
+		_est_move Centered, to(`Centered')
+		}
 	estimates store Centered
 	
 	// rescale all centered continuous variables
@@ -89,6 +96,13 @@ program define stdBeta
 	
 	//re-estimate, standardized
 	quietly `cmdline'
+	capture estimates dir Standardized
+	local clashs = "`r(names)'"
+	if "`clashs'" == "Standardized" {
+		display "Note:  found estimate store {it:Standardized}"
+		tempname Standardized
+		_est_move Standardized, to(`Standardized')
+		}
 	estimates store Standardized
 	
 	// report the results
@@ -97,7 +111,54 @@ program define stdBeta
 	// clean up
 	quietly estimates restore Original
 	if "`store'" == "" {
+	// don't store, replace any previous stores
 		estimates drop Original Centered Standardized
+		if "`clasho'" != "" {
+			display "Note:  restored estimate store {it:Original}"
+			_est_move `Original', to(Original)
+			}
+		if "`clashc'" != "" {
+			display "Note:  restored estimate store {it:Centered}"
+			_est_move `Centered', to(Centered)
+			}
+		if "`clashs'" != "" {
+			display "Note:  restored estimate store {it:Standardized}"
+			_est_move `Standardized', to(Standardized)
+			}
+		}
+	else if /*"`store'" != "" &*/ "`replace'" == "" & ("`clasho'"!="" | "`clashc'"!="" | "`clashs'"!="") {
+		// warn if there is a name clash
+		di "{error: estimate store(s) `clasho' `clashc' `clashs' cannot be overwritten}"
+		di "   Try using the '{cmd:replace}' option,"
+		di "   or using '{cmd:estimates drop `clasho' `clashc' `clashs'}'"
+		if "`clasho'" != "" {
+			_est_move `Original', to(Original)
+			}
+		if "`clashc'" != "" {
+			_est_move `Centered', to(Centered)
+			}
+		if "`clashs'" != "" {
+			_est_move `Standardized', to(Standardized)
+			}
+		exit
+		}
+	else /*if "`store'" != "" & "`replace'" != ""*/ {
+	// keep new stores, drop the old ones
+		display "stored new estimates {it:Original}, {it:Centered}, and {it:Standardized}"
+		//estimates drop `Original' `Centered' `Standardized'
 		}
 	restore
+end
+
+* Move a previously named store to a new name
+program define _est_move
+	version 13
+	syntax name(name=from id="store to move" local), to(name local)
+	tempname current
+	estimates store `current' // hold current estimates
+	quietly estimates restore `from' //re-store
+	estimates store `to'
+	estimates drop `from'  // clear name
+	quietly estimates restore `current'
+	estimates drop `current'
 end

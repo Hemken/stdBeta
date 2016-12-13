@@ -1,5 +1,5 @@
 {smcl}
-{* *! version 1.0  03jan2014}{...}
+{* *! version 1.8  13dec2016}{...}
 {vieweralsosee "[R] regress, beta" "help regress"}{...}
 {vieweralsosee "[R] estimates table" "help estimates table"}{...}
 {viewerjumpto "Syntax" "stdBeta##syntax"}{...}
@@ -36,7 +36,7 @@
 
 {pstd}
 {cmd:stdBeta} calculates centered and standardized coefficients, standard errors,
-  and fit statistics, optionally storing the results as {cmd: estimates store}
+  and fit statistics, optionally storing the results as {cmd:estimates store}
 
 
 {marker options}{...}
@@ -49,14 +49,14 @@
 
 {phang}
 {opt store} stores ereturn statistics for all three models.  These are
-{cmd: estimates store}s name Original, Centered, and Standardized.
+{cmd:estimates store}s name Original, Centered, and Standardized.
 
 {phang}
-{opt replace} if any estimates stores named Original, Centered, and Standardized
-already exist, you must replace them.
+{opt replace} if estimates stores named Original, Centered, or Standardized
+already exist, and you want to store these estimates, you must replace them.
 
 {phang}
-{it:estimates_table_options} options passed to {cmd: estimates table} for
+{it:estimates_table_options} options passed to {cmd:estimates table} for
 reporting.
 
 
