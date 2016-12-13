@@ -1,26 +1,20 @@
-* version 1.8 12December2016
+* version 1.7 1July2016
 * Doug Hemken, Social Science Computing Coop
 *    Univ of Wisc - Madison
-capture program drop stdBet2
-program define stdBeta2
+program define stdBeta
 	version 13
 	syntax [, nodepvar replace store *] 
 	// options for estimates table are allowed
 	
 	preserve
+	
 	// check that estimate storage names are not already in use
-	//quietly estimates dir
-	//local storenames "`r(names)' Original Centered Standardized"
-	//local storedups : list dups storenames
-	//if "`storedups'" != "" & "`replace'" == "" {
-	//	di "{error: estimate store(s) `storedups' cannot be overwritten}"
-	//	exit
-	//	}
-	capture estimates dir Original
-	local clasho = "`r(names)'"
-	if "`clasho'" == "Original" {
-		tempname Original
-		_est_move Original, to(`Original')
+	quietly estimates dir
+	local storenames "`r(names)' Original Centered Standardized"
+	local storedups : list dups storenames
+	if "`storedups'" != "" & "`replace'" == "" {
+		di "{error: estimate store(s) `storedups' cannot be overwritten}"
+		exit
 		}
 	estimates store Original
 	tempvar touse
@@ -85,12 +79,6 @@ program define stdBeta2
 	}
 	// re-estimate, centered
 	quietly `cmdline'
-	capture estimates dir Centered
-	local clashc = "`r(names)'"
-	if "`clashc'" == "Centered" {
-		tempname Centered
-		_est_move Centered, to(`Centered')
-		}
 	estimates store Centered
 	
 	// rescale all centered continuous variables
@@ -101,12 +89,6 @@ program define stdBeta2
 	
 	//re-estimate, standardized
 	quietly `cmdline'
-	capture estimates dir Standardized
-	local clashs = "`r(names)'"
-	if "`clashs'" == "Standardized" {
-		tempname Standardized
-		_est_move Standardized, to(`Standardized')
-		}
 	estimates store Standardized
 	
 	// report the results
@@ -116,15 +98,6 @@ program define stdBeta2
 	quietly estimates restore Original
 	if "`store'" == "" {
 		estimates drop Original Centered Standardized
-		if "`clasho'" != "" {
-			_est_move `Original', to(Original)
-			}
-		if "`clashc'" != "" {
-			_est_move `Centered', to(Centered)
-			}
-		if "`clashs'" != "" {
-			_est_move `Standardized', to(Standardized)
-			}
 		}
 	restore
 end
