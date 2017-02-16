@@ -2,7 +2,7 @@
 * Doug Hemken, Social Science Computing Coop
 *    Univ of Wisc - Madison
 // capture program drop stdBeta _est_move
-program define stdBeta2
+program define stdBeta
 	version 13
 	syntax [, nodepvar store replace *] 
 	// options for estimates table are allowed
