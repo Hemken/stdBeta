@@ -1,15 +1,13 @@
-* version 2.0 01August2017
+* version 1.8 13December2016
 * Doug Hemken, Social Science Computing Coop
 *    Univ of Wisc - Madison
-capture program drop stdBetavars _est_move _recenter _rescale
-program define stdBetavars
-	version 12
-	syntax [, nodepvar store replace generate *] 
+// capture program drop stdBeta _est_move
+program define stdBeta
+	version 13
+	syntax [, nodepvar store replace *] 
 	// options for estimates table are allowed
 	
-	//if "`generate'" == "" {
-		preserve
-	//	}
+	preserve
 
 	capture estimates dir Original
 	local clasho = "`r(names)'"
@@ -75,8 +73,10 @@ program define stdBetavars
 			}
 	
 	// center all continuous variables
-	_recenter `vars' if `touse', pre(c_)
-	
+	quietly foreach var in `vars' {
+		summarize `var' if `touse'
+		replace `var' = `var' - r(mean)
+	}
 	// re-estimate, centered
 	quietly `cmdline'
 	capture estimates dir Centered
@@ -89,7 +89,10 @@ program define stdBetavars
 	estimates store Centered
 	
 	// rescale all centered continuous variables
-	_rescale `vars' if `touse', pre(z_)
+	quietly foreach var in `vars' {
+		summarize `var' if `touse'
+		replace `var' = `var'/r(sd)
+	}
 	
 	//re-estimate, standardized
 	quietly `cmdline'
@@ -144,21 +147,12 @@ program define stdBetavars
 		display "stored new estimates {it:Original}, {it:Centered}, and {it:Standardized}"
 		//estimates drop `Original' `Centered' `Standardized'
 		}
-	quietly if "`generate'" != "" {
-		keep c_* z_*
-		tempfile newvars
-		save `newvars'
-		}
 	restore
-	quietly if "`generate'" != "" {
-		merge 1:1 _n using `newvars'
-		drop _merge
-		}
 end
 
 * Move a previously named store to a new name
 program define _est_move
-	version 12
+	version 13
 	syntax name(name=from id="store to move" local), to(name local)
 	tempname current
 	estimates store `current' // hold current estimates
@@ -167,24 +161,4 @@ program define _est_move
 	estimates drop `from'  // clear name
 	quietly estimates restore `current'
 	estimates drop `current'
-end
-
-program define _recenter
-	version 12
-	syntax varlist [if], pre(name)
-	quietly foreach var in `varlist' {
-		summarize `var' `if'
-		replace `var' = `var' - r(mean)
-		generate `pre'`var' = `var'
-	}
-end
-
-program define _rescale
-	version 12
-	syntax varlist [if], pre(name)
-	quietly foreach var in `varlist' {
-		summarize `var' `if'
-		replace `var' = `var'/r(sd)
-		generate `pre'`var' = `var'
-	}
 end
