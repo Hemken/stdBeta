@@ -1,4 +1,4 @@
-* version 2.0 02August2017
+* version 2.1 02August2017
 * Doug Hemken, Social Science Computing Coop
 *    Univ of Wisc - Madison
 // capture program drop stdBeta _est_move _recenter _rescale
@@ -76,7 +76,7 @@ program define stdBeta
 			}
 		local generate "generate"
 		}
-		di "generate: `generate'"
+		//di "generate: `generate'"
 
 	// handle original estimates
 	capture estimates dir `O'
