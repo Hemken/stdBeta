@@ -56,7 +56,7 @@ previously stored estimates.
 
 {phang}
 {opt generate} Save the centered and standardized versions of the
-variables in the model.  The default prefix for the centered
+variables used in the model.  The default prefix for the centered
 variable names is "c_", while the default prefix for the
 standardized variables is "z_".
 Optionally accepts user supplied variable prefixes, and replaces
