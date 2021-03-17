@@ -3,12 +3,12 @@ estimates clear
 
 quietly regress price i.foreign c.weight##c.disp
 
-stdBetavars, generate
+stdBeta, generate
 
-stdBetavars, generate(c z)
+stdBeta, generate(c z)
 
 summarize c_price
 replace c_price = 1
-stdBetavars, generate(,replace)
+stdBeta, generate(,replace)
 
 summarize price cprice c_price

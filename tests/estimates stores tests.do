@@ -1,29 +1,26 @@
 sysuse auto, clear
 estimates clear
 
-quietly regress price i.foreign c.weight##c.disp
+quietly regress price i.rep78 c.weight##c.disp
 
-*stdBeta
-*estimates dir
-
-stdBetavars
+stdBeta
 estimates dir
 
-stdBetavars, store // Original, Centered, Standardized
+stdBeta, store // Original, Centered, Standardized
 estimates dir
-estimates clear
+//estimates clear
 
-stdBetavars, store(A B) // results given, stored
-estimates dir
+//stdBeta, store(A B) // results given, stored
+//estimates dir
 
-stdBetavars, store(A B C) // new stores attempt
-estimates dir
-
-stdBetavars, store(A B C, replace) // stores replaced
+stdBeta, store(A B C) // new stores attempt
 estimates dir
 
-stdBetavars, store // Original, Centered, Standardized
-stdBetavars, store( , replace) // stores replaced
+stdBeta, store(A B C, replace) // stores replaced
+estimates dir
+
+//stdBeta, store // Original, Centered, Standardized
+stdBeta, store( , replace) // stores replaced
 
 estimates clear
 

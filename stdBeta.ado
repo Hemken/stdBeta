@@ -1,7 +1,7 @@
-*! version 3.0 18Sep2019
+*! version 3.1 17Mar2021
 *! Doug Hemken, Social Science Computing Coop
 *!    Univ of Wisc - Madison
-// capture program drop stdBeta _est_move _recenter _rescale
+ capture program drop stdBeta _est_move _recenter _rescale
 program define stdBeta
 	version 12
 	syntax [, nodepvar STOREa STOREb(string) GENeratea GENerateb(string) *] 
@@ -11,19 +11,24 @@ program define stdBeta
 	if c(stata_version) < 16 {
 		preserve
 	}
-	else {
-//		preserve
+	
+// keep track of missing values
+	tempvar touseo
+	mark `touseo' if e(sample)
+	
+	if c(stata_version) >= 16  {
+        tempname cframe sframe
 		quietly frame pwf
-		frame copy `r(currentframe)' Centered
-		frame copy `r(currentframe)' Standardized
+		frame copy `r(currentframe)' `cframe'
+		frame copy `r(currentframe)' `sframe'
 	}
 	
-	// initialize estimate store names
+// initialize estimate store names
 	local O "Original"
 	local C "Centered"
 	local S "Standardized"
 
-	// check store and replace options
+// check store and replace options
 	if "`storea'" != "" {
 		local store "store"
 	} 
@@ -54,7 +59,7 @@ program define stdBeta
 			}
 	}
 	
-	// set prefixes for generated variables
+// set prefixes for generated variables
 	if "`generatea'" != "" {
 		local prefixc "c_"
 		local prefixz "z_"
@@ -87,7 +92,7 @@ program define stdBeta
 		}
 		//di "generate: `generate'"
 
-	// handle original estimates
+// handle original estimates
 	capture estimates dir `O'
 	local clasho = "`r(names)'"
 	if "`clasho'" == "`O'" {
@@ -97,24 +102,14 @@ program define stdBeta
 		}
 	estimates store `O'
 
-	// keep track of missing values
-	tempvar touseo
-	mark `touseo' if e(sample)
-	if c(stata_version) >= 16 {
-		frame Centered:	tempvar tousec
-		frame Centered:	mark `tousec' if e(sample)
-		frame Standardized: tempvar touses
-		frame Standardized: mark `touses' if e(sample)
-	}
-
-	// identify terms used in regression
+// identify terms used in regression
 	local cmd `e(cmd)'
 	local cmdline `e(cmdline)'
 	local dep `e(depvar)'
 	local cols: colnames e(b)
 	local cols: subinstr local cols "_cons" "", all
 
-	// identify continuous variables
+// identify continuous variables
 	local vars: subinstr local cols "#" " ", all
 	foreach var of local vars {
 		_ms_parse_parts `var'
@@ -124,7 +119,7 @@ program define stdBeta
 		}
 	unopvarlist `list'
 	
-	// exclude the dependent variable for some models
+// exclude the dependent variable for some models
 	if "`e(cmd)'" == "regress" {
 		if "`depvar'" == "" {
 			local vars `e(depvar)' `r(varlist)'
@@ -158,20 +153,21 @@ program define stdBeta
 					local vars `r(varlist)'
 				}
 			}
-
-	// center all continuous variables
-	// and re-estimate, centered
+// center all continuous variables
+// and re-estimate, centered
 
 	if c(stata_version) < 16 {
 		_recenter `vars' if `touseo', pre(`prefixc') `genreplace'
 		quietly `cmdline'
 	}
 	else {
-		frame Centered:	_recenter `vars' if `tousec', pre(`prefixc') `genreplace'
-		frame Centered:	quietly `cmdline'
+		frame `cframe' {
+			_recenter `vars' if `touseo', pre(`prefixc') `genreplace'
+			quietly `cmdline'
+		}
 	}
-		
-	// handle centered estimates
+
+// handle centered estimates
 	capture estimates dir `C'
 	local clashc = "`r(names)'"
 	if "`clashc'" == "`C'" {
@@ -181,19 +177,19 @@ program define stdBeta
 		}
 	estimates store `C'
 
-	// rescale all centered continuous variables
-	//re-estimate, standardized
+// rescale all centered continuous variables
+//re-estimate, standardized
 	if c(stata_version) < 16 {
 		_rescale `vars' if `touseo', pre(`prefixz') `genreplace'
 		quietly `cmdline'
 	}
 	else {
-		frame Standardized: _recenter `vars' if `touses', pre(`prefixc') `genreplace'
-		frame Standardized: _rescale `vars' if `touses', pre(`prefixz') `genreplace'
-		frame Standardized: quietly `cmdline'
+		frame `sframe': _recenter `vars' if `touseo', pre(`prefixc') `genreplace'
+		frame `sframe': _rescale `vars' if `touseo', pre(`prefixz') `genreplace'
+		frame `sframe': quietly `cmdline'
 	}
 
-	// handle standardized estimates
+// handle standardized estimates
 	capture estimates dir `S'
 	local clashs = "`r(names)'"
 	if "`clashs'" == "`S'" {
@@ -203,10 +199,10 @@ program define stdBeta
 		}
 	estimates store `S'
 	
-	// report the results
+// report the results
 	estimates table `O' `C' `S', modelwidth(12) `options'
 	
-	// clean up
+// clean up
 	quietly estimates restore `O'
 	if "`store'" == "" {
 	// don't store, replace any previous stores
@@ -248,22 +244,24 @@ program define stdBeta
 		display "stored new estimates {it:`O'}, {it:`C'}, and {it:`S'}"
 		}
 
-	// save generated variables
+// save generated variables
 	quietly if "`generate'" != "" {
-		keep `prefixc'* `prefixz'*
 		tempfile newvars
-		save `newvars'
+		if c(stata_version) < 16 {
+			keep `prefixc'* `prefixz'*
+			save `newvars'
+			}
 		}
 		
-	// original data set
+// original data set
 	if c(stata_version) < 16 {
 		restore
 	}
 	else {
-		frame drop Centered
-		frame drop Standardized
+		frame drop `cframe'
+		frame drop `sframe'
 	}
-	// merge any generated variables
+// merge any generated variables
 	quietly if "`generate'" != "" {
 		merge 1:1 _n using `newvars', update replace
 		drop _merge
@@ -280,7 +278,7 @@ program define _est_move
 	estimates store `to'
 	estimates drop `from'  // clear name
 	quietly estimates restore `current'
-	estimates drop `current'
+	//estimates drop `current'
 end
 
 program define _recenter
