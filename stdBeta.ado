@@ -2,7 +2,7 @@
 *! Doug Hemken, Social Science Computing Coop
 *!    Univ of Wisc - Madison
  capture program drop stdBeta _est_move _recenter _rescale
-program define stdBeta
+program define stdBeta, rclass
 	version 12
 	syntax [, nodepvar STOREa STOREb(string) GENeratea GENerateb(string) *] 
 	// options for estimates table are allowed as *
@@ -17,11 +17,16 @@ program define stdBeta
 	mark `touseo' if e(sample)
 	
 	if c(stata_version) >= 16  {
+	    tempvar id
+		quietly generate `id' = _n
         tempname cframe sframe
 		quietly frame pwf
 		frame copy `r(currentframe)' `cframe'
 		frame copy `r(currentframe)' `sframe'
+		quietly frlink 1:1 `id', frame(`cframe') 
+		quietly frlink 1:1 `id', frame(`sframe') 
 	}
+//di "frames initialized"
 	
 // initialize estimate store names
 	local O "Original"
@@ -58,6 +63,7 @@ program define stdBeta
 				}
 			}
 	}
+//di "estimate stores initialized"
 	
 // set prefixes for generated variables
 	if "`generatea'" != "" {
@@ -90,7 +96,7 @@ program define stdBeta
 			}
 		local generate "generate"
 		}
-		//di "generate: `generate'"
+//di "initialized newvar prefixes"
 
 // handle original estimates
 	capture estimates dir `O'
@@ -101,6 +107,7 @@ program define stdBeta
 		_est_move `O', to(`Original')
 		}
 	estimates store `O'
+//di "original estimates stored"
 
 // identify terms used in regression
 	local cmd `e(cmd)'
@@ -153,19 +160,29 @@ program define stdBeta
 					local vars `r(varlist)'
 				}
 			}
+//di "variables to transform identified"
+
 // center all continuous variables
 // and re-estimate, centered
-
 	if c(stata_version) < 16 {
 		_recenter `vars' if `touseo', pre(`prefixc') `genreplace'
 		quietly `cmdline'
 	}
 	else {
-		frame `cframe' {
-			_recenter `vars' if `touseo', pre(`prefixc') `genreplace'
-			quietly `cmdline'
+		frame `cframe': _recenter `vars' if `touseo' //, pre(`prefixc') `genreplace'
+//di "recentered in cframe"
+		if ("`generate'"=="generate") {
+    		foreach var of varlist `vars' {
+				if ("`genreplace'"=="replace") {
+					drop `prefixc'`var'
+				}
+				frget `var', from(`cframe') prefix("`prefixc'")
+			}
+//di "recentered variables copied"
 		}
+		frame `cframe':	quietly `cmdline'
 	}
+//di "recentered estimation"
 
 // handle centered estimates
 	capture estimates dir `C'
@@ -176,6 +193,7 @@ program define stdBeta
 		_est_move `C', to(`Centered')
 		}
 	estimates store `C'
+//di "recentered estimates stored"
 
 // rescale all centered continuous variables
 //re-estimate, standardized
@@ -184,10 +202,21 @@ program define stdBeta
 		quietly `cmdline'
 	}
 	else {
-		frame `sframe': _recenter `vars' if `touseo', pre(`prefixc') `genreplace'
-		frame `sframe': _rescale `vars' if `touseo', pre(`prefixz') `genreplace'
+		frame `sframe': _recenter `vars' if `touseo' //, pre(`prefixc') `genreplace'
+		frame `sframe': _rescale `vars' if `touseo' //, pre(`prefixz') `genreplace'
+//di "rescaled in sframe"
+		if ("`generate'"=="generate") {
+    		foreach var of varlist `vars' {
+				if ("`genreplace'"=="replace") {
+					drop `prefixc'`var'
+				}
+				frget `var', from(`cframe') prefix("`prefixc'")
+			}
+//di "rescaled variables copied"
+		}
 		frame `sframe': quietly `cmdline'
 	}
+//di "rescaled estimation"
 
 // handle standardized estimates
 	capture estimates dir `S'
@@ -198,10 +227,18 @@ program define stdBeta
 		_est_move `S', to(`Standardized')
 		}
 	estimates store `S'
+//di "rescaled estimates stored"
 	
 // report the results
 	estimates table `O' `C' `S', modelwidth(12) `options'
-	
+	local names = "`r(names)'"
+	matrix coef = r(coef)
+	if ("`r(stats)'" != "") {
+	    local stattbl = "stattbl"
+	    matrix stats = r(stats)
+	}
+//di "the desired results"
+
 // clean up
 	quietly estimates restore `O'
 	if "`store'" == "" {
@@ -221,6 +258,7 @@ program define stdBeta
 			}
 		}
 	else if /*"`store'" != "" &*/ "`replace'" == "" & ("`clasho'"!="" | "`clashc'"!="" | "`clashs'"!="") {
+	    // store, without replace
 		// warn if there is a name clash
 		di "{error: estimate store(s) `clasho' `clashc' `clashs' cannot be overwritten}"
 		di "{error:   Try using the '{cmd:replace}' option,}"
@@ -240,14 +278,16 @@ program define stdBeta
 		exit
 		}
 	else /*if "`store'" != "" & "`replace'" != ""*/ {
+	    // store and replace
 	// keep new stores, drop the old ones
 		display "stored new estimates {it:`O'}, {it:`C'}, and {it:`S'}"
 		}
+//di "estimate store cleanup"
 
-// save generated variables
-	quietly if "`generate'" != "" {
-		tempfile newvars
-		if c(stata_version) < 16 {
+// save generated variables, pre Stata 16
+	if (c(stata_version) < 16) {
+	    quietly if "`generate'" != "" {
+			tempfile newvars
 			keep `prefixc'* `prefixz'*
 			save `newvars'
 			}
@@ -261,11 +301,22 @@ program define stdBeta
 		frame drop `cframe'
 		frame drop `sframe'
 	}
+//di "restore original data"
+
 // merge any generated variables
-	quietly if "`generate'" != "" {
+	if (c(stata_version) < 16) {
+	    	quietly if "`generate'" != "" {
 		merge 1:1 _n using `newvars', update replace
 		drop _merge
 		}
+	}
+	
+// return estimates tables returns	
+	return local names = "`names'"
+	return matrix coef = coef
+	if ("`stattbl'" != ""){
+	    	return matrix stats = stats
+	}
 end
 
 * Move a previously named store to a new name
