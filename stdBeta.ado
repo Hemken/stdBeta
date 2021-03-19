@@ -176,7 +176,7 @@ program define stdBeta, rclass
 				if ("`genreplace'"=="replace") {
 					drop `prefixc'`var'
 				}
-				frget `var', from(`cframe') prefix("`prefixc'")
+				quietly frget `var', from(`cframe') prefix("`prefixc'")
 			}
 //di "recentered variables copied"
 		}
@@ -208,9 +208,9 @@ program define stdBeta, rclass
 		if ("`generate'"=="generate") {
     		foreach var of varlist `vars' {
 				if ("`genreplace'"=="replace") {
-					drop `prefixc'`var'
+					drop `prefixz'`var'
 				}
-				frget `var', from(`cframe') prefix("`prefixc'")
+				quietly frget `var', from(`sframe') prefix("`prefixz'")
 			}
 //di "rescaled variables copied"
 		}
